@@ -9,9 +9,10 @@ import WhatIfAnalysis from "./pages/WhatIfAnalysis";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import ProgressReports from "./pages/ProgressReports";
+import ProgressVerification from "./pages/ProgressVerification";
 import {
   LayoutDashboard, ClipboardList, Calendar, AlertTriangle,
-  Brain, Layers, GitBranch, BarChart2, FileText, TrendingUp,
+  Brain, Layers, GitBranch, BarChart2, FileText, TrendingUp, ShieldCheck,
   Settings, ChevronDown, Bell, User, Wifi, Train
 } from "lucide-react";
 
@@ -26,13 +27,15 @@ const NAV = [
   { id: "analytics", label: "Analytics", icon: BarChart2 },
   { id: "reports", label: "Reports", icon: FileText },
   { id: "progress", label: "Progress Reports", icon: TrendingUp },
+  { id: "verification", label: "Progress Verification", icon: ShieldCheck },
 ];
 
 function AppShell() {
-  const { currentPage, setCurrentPage, conflicts, requests, executionActivities } = useApp();
+  const { currentPage, setCurrentPage, conflicts, requests, executionActivities, verificationRecords } = useApp();
   const pendingCount = requests.filter(r => r.status === "Pending").length;
   const unresolvedConflicts = conflicts.filter(c => !c.resolved).length;
   const delayedCount = executionActivities.filter(a => a.status === "Delayed").length;
+  const flaggedCount = verificationRecords.filter(r => r.flagged).length;
 
   const PageComponent = {
     dashboard: Dashboard,
@@ -45,6 +48,7 @@ function AppShell() {
     analytics: Analytics,
     reports: Reports,
     progress: ProgressReports,
+    verification: ProgressVerification,
   }[currentPage] || Dashboard;
 
   return (
@@ -69,7 +73,7 @@ function AppShell() {
           {NAV.map(item => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
-            const badge = item.id === "conflicts" ? unresolvedConflicts : item.id === "requests" ? pendingCount : item.id === "progress" ? delayedCount : 0;
+            const badge = item.id === "conflicts" ? unresolvedConflicts : item.id === "requests" ? pendingCount : item.id === "progress" ? delayedCount : item.id === "verification" ? flaggedCount : 0;
             return (
               <button
                 key={item.id}
