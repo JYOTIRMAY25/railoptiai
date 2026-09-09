@@ -8,9 +8,10 @@ import SmartBundling from "./pages/SmartBundling";
 import WhatIfAnalysis from "./pages/WhatIfAnalysis";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
+import ProgressReports from "./pages/ProgressReports";
 import {
   LayoutDashboard, ClipboardList, Calendar, AlertTriangle,
-  Brain, Layers, GitBranch, BarChart2, FileText,
+  Brain, Layers, GitBranch, BarChart2, FileText, TrendingUp,
   Settings, ChevronDown, Bell, User, Wifi, Train
 } from "lucide-react";
 
@@ -24,12 +25,14 @@ const NAV = [
   { id: "whatif", label: "What-If Analysis", icon: GitBranch },
   { id: "analytics", label: "Analytics", icon: BarChart2 },
   { id: "reports", label: "Reports", icon: FileText },
+  { id: "progress", label: "Progress Reports", icon: TrendingUp },
 ];
 
 function AppShell() {
-  const { currentPage, setCurrentPage, conflicts, requests } = useApp();
+  const { currentPage, setCurrentPage, conflicts, requests, executionActivities } = useApp();
   const pendingCount = requests.filter(r => r.status === "Pending").length;
   const unresolvedConflicts = conflicts.filter(c => !c.resolved).length;
+  const delayedCount = executionActivities.filter(a => a.status === "Delayed").length;
 
   const PageComponent = {
     dashboard: Dashboard,
@@ -41,6 +44,7 @@ function AppShell() {
     whatif: WhatIfAnalysis,
     analytics: Analytics,
     reports: Reports,
+    progress: ProgressReports,
   }[currentPage] || Dashboard;
 
   return (
@@ -65,7 +69,7 @@ function AppShell() {
           {NAV.map(item => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
-            const badge = item.id === "conflicts" ? unresolvedConflicts : item.id === "requests" ? pendingCount : 0;
+            const badge = item.id === "conflicts" ? unresolvedConflicts : item.id === "requests" ? pendingCount : item.id === "progress" ? delayedCount : 0;
             return (
               <button
                 key={item.id}
