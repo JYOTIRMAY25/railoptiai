@@ -83,6 +83,34 @@ export interface ExecutionActivity {
   remarks: string;
 }
 
+export type VerificationStatus = "Not Started" | "In Progress" | "Completed" | "Delayed" | "Photo Pending";
+
+export interface PhotoRecord {
+  timestamp: string;
+  label: string; // synthetic filename
+}
+
+export interface VerificationRecord {
+  id: string;
+  requestId: string;
+  blockId: string;
+  department: Department;
+  section: string;
+  activity: string;
+  plannedStart: string;
+  plannedEnd: string;
+  actualStart: string;
+  actualEnd: string;
+  startPhoto: PhotoRecord | null;
+  endPhoto: PhotoRecord | null;
+  status: VerificationStatus;
+  progress: number;
+  gracePeriodMinutes: number; // configurable
+  flagged: boolean;
+  flagReason: string;
+  remarks: string;
+}
+
 export interface PlanStatus {
   generated: boolean;
   approved: boolean;
@@ -104,6 +132,10 @@ interface AppState {
   conflicts: Conflict[];
   executionActivities: ExecutionActivity[];
   updateExecution: (id: string, patch: Partial<ExecutionActivity>) => void;
+  verificationRecords: VerificationRecord[];
+  uploadStartPhoto: (id: string) => void;
+  uploadEndPhoto: (id: string) => void;
+  updateVerification: (id: string, patch: Partial<VerificationRecord>) => void;
   bundles: Bundle[];
   planStatus: PlanStatus;
   addRequest: (r: Omit<MaintenanceRequest, "id" | "aiScore" | "safetyScore" | "operationalScore" | "assetCriticalityScore" | "urgencyScore">) => string;
@@ -174,6 +206,15 @@ const initialExecutionActivities: ExecutionActivity[] = [
   { id: "EA-006", requestId: "MR-1029", blockId: "B-027", department: "Electrical", section: "D04", activity: "Electrical Inspection", plannedStart: "08:00", plannedEnd: "10:00", actualStart: "", actualEnd: "", progress: 0, status: "Planned", delayMinutes: 0, delayReason: "", remarks: "" },
 ];
 
+const initialVerificationRecords: VerificationRecord[] = [
+  { id: "VR-001", requestId: "MR-1024", blockId: "B-023", department: "Engineering", section: "A12", activity: "Track Inspection", plannedStart: "02:00", plannedEnd: "06:00", actualStart: "02:10", actualEnd: "05:45", startPhoto: { timestamp: "07 Sep 2026 02:10", label: "START_MR1024_A12_0210.jpg" }, endPhoto: { timestamp: "07 Sep 2026 05:45", label: "END_MR1024_A12_0545.jpg" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Track geometry within tolerance. No defects found." },
+  { id: "VR-002", requestId: "MR-1025", blockId: "B-023", department: "Signalling", section: "A12", activity: "Signal Inspection", plannedStart: "02:00", plannedEnd: "04:00", actualStart: "02:15", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 02:15", label: "START_MR1025_A12_0215.jpg" }, endPhoto: null, status: "In Progress", progress: 75, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Signal relay tests ongoing. S-42 relay showing marginal readings." },
+  { id: "VR-003", requestId: "MR-1026", blockId: "B-024", department: "Traction", section: "B07", activity: "OHE Maintenance", plannedStart: "04:00", plannedEnd: "07:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Not Started", progress: 0, gracePeriodMinutes: 20, flagged: true, flagReason: "No start photo uploaded within 20-minute grace period after planned start 04:00", remarks: "" },
+  { id: "VR-004", requestId: "MR-1027", blockId: "B-025", department: "Engineering", section: "C03", activity: "Bridge Inspection", plannedStart: "10:00", plannedEnd: "13:00", actualStart: "10:05", actualEnd: "13:10", startPhoto: { timestamp: "07 Sep 2026 10:05", label: "START_MR1027_C03_1005.jpg" }, endPhoto: { timestamp: "07 Sep 2026 13:10", label: "END_MR1027_C03_1310.jpg" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Minor crack noted on Pier-3. Flagged for urgent follow-up inspection." },
+  { id: "VR-005", requestId: "MR-1028", blockId: "B-026", department: "Telecom", section: "A13", activity: "Telecom Inspection", plannedStart: "06:00", plannedEnd: "08:00", actualStart: "06:00", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 06:00", label: "START_MR1028_A13_0600.jpg" }, endPhoto: null, status: "Photo Pending", progress: 40, gracePeriodMinutes: 15, flagged: true, flagReason: "End photo not uploaded — planned end 08:00 passed. Block may be overrunning.", remarks: "Cable fault found. Additional repair required. Requesting block extension." },
+  { id: "VR-006", requestId: "MR-1029", blockId: "B-027", department: "Electrical", section: "D04", activity: "Electrical Inspection", plannedStart: "08:00", plannedEnd: "10:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Not Started", progress: 0, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "" },
+];
+
 const initialPlanStatus: PlanStatus = {
   generated: false, approved: false, period: "07–13 Sep 2026",
   requestedBlocks: 23, optimizedBlocks: 16, conflictsBefore: 11, conflictsAfter: 2,
@@ -191,11 +232,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bundles, setBundles] = useState<Bundle[]>(initialBundles);
   const [planStatus, setPlanStatus] = useState<PlanStatus>(initialPlanStatus);
   const [executionActivities, setExecutionActivities] = useState<ExecutionActivity[]>(initialExecutionActivities);
+  const [verificationRecords, setVerificationRecords] = useState<VerificationRecord[]>(initialVerificationRecords);
   const [currentPage, setCurrentPage] = useState("dashboard");
 
   const updateExecution = useCallback((id: string, patch: Partial<ExecutionActivity>) => {
     setExecutionActivities(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
   }, []);
+
+  const updateVerification = useCallback((id: string, patch: Partial<VerificationRecord>) => {
+    setVerificationRecords(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  }, []);
+
+  const uploadStartPhoto = useCallback((id: string) => {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = `07 Sep 2026 ${timeStr}`;
+    setVerificationRecords(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const rec = r as VerificationRecord;
+      const label = `START_${rec.requestId.replace("-", "")}_${rec.section}_${timeStr.replace(":", "")}.jpg`;
+      return { ...rec, startPhoto: { timestamp: dateStr, label }, actualStart: timeStr, status: "In Progress" as VerificationStatus, flagged: false, flagReason: "", progress: rec.progress === 0 ? 5 : rec.progress };
+    }));
+    // Also sync executionActivities
+    setExecutionActivities(prev => prev.map(a => {
+      const vr = initialVerificationRecords.find(v => v.id === id);
+      if (!vr || a.requestId !== vr.requestId) return a;
+      return { ...a, actualStart: timeStr, status: "In Progress" as ExecutionStatus };
+    }));
+  }, []);
+
+  const uploadEndPhoto = useCallback((id: string) => {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = `07 Sep 2026 ${timeStr}`;
+    setVerificationRecords(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const rec = r as VerificationRecord;
+      const label = `END_${rec.requestId.replace("-", "")}_${rec.section}_${timeStr.replace(":", "")}.jpg`;
+      return { ...rec, endPhoto: { timestamp: dateStr, label }, actualEnd: timeStr, status: "Completed" as VerificationStatus, progress: 100, flagged: false, flagReason: "" };
+    }));
+    setExecutionActivities(prev => prev.map(a => {
+      const vr = initialVerificationRecords.find(v => v.id === id);
+      if (!vr || a.requestId !== vr.requestId) return a;
+      return { ...a, actualEnd: timeStr, status: "Completed" as ExecutionStatus, progress: 100 };
+    }));
+    // Also mark block as approved
+    setBlocks(prev => prev.map(b => {
+      const vr = initialVerificationRecords.find(v => v.id === id);
+      if (!vr || b.id !== vr.blockId) return b;
+      const allDone = verificationRecords.filter(v => v.blockId === vr.blockId).every(v => v.id === id || v.status === "Completed");
+      return allDone ? { ...b, status: "Approved" as Block["status"] } : b;
+    }));
+  }, [verificationRecords]);
 
   const addRequest = useCallback((r: Omit<MaintenanceRequest, "id" | "aiScore" | "safetyScore" | "operationalScore" | "assetCriticalityScore" | "urgencyScore">) => {
     const id = `MR-${requestCounter++}`;
@@ -263,7 +351,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ requests, blocks, conflicts, bundles, planStatus, executionActivities, updateExecution, addRequest, updateBlockStatus, updateBlockTime, resolveConflict, createBundledBlock, generateOptimizedPlan, approvePlan, rejectPlan, currentPage, setCurrentPage }}>
+    <AppContext.Provider value={{ requests, blocks, conflicts, bundles, planStatus, executionActivities, updateExecution, verificationRecords, uploadStartPhoto, uploadEndPhoto, updateVerification, addRequest, updateBlockStatus, updateBlockTime, resolveConflict, createBundledBlock, generateOptimizedPlan, approvePlan, rejectPlan, currentPage, setCurrentPage }}>
       {children}
     </AppContext.Provider>
   );
