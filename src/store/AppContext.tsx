@@ -63,6 +63,26 @@ export interface Bundle {
   status: "Suggested" | "Created" | "Rejected";
 }
 
+export type ExecutionStatus = "Planned" | "In Progress" | "Completed" | "Delayed";
+
+export interface ExecutionActivity {
+  id: string;
+  requestId: string;
+  blockId: string;
+  department: Department;
+  section: string;
+  activity: string;
+  plannedStart: string;
+  plannedEnd: string;
+  actualStart: string;
+  actualEnd: string;
+  progress: number; // 0–100
+  status: ExecutionStatus;
+  delayMinutes: number;
+  delayReason: string;
+  remarks: string;
+}
+
 export interface PlanStatus {
   generated: boolean;
   approved: boolean;
@@ -82,6 +102,8 @@ interface AppState {
   requests: MaintenanceRequest[];
   blocks: Block[];
   conflicts: Conflict[];
+  executionActivities: ExecutionActivity[];
+  updateExecution: (id: string, patch: Partial<ExecutionActivity>) => void;
   bundles: Bundle[];
   planStatus: PlanStatus;
   addRequest: (r: Omit<MaintenanceRequest, "id" | "aiScore" | "safetyScore" | "operationalScore" | "assetCriticalityScore" | "urgencyScore">) => string;
@@ -143,6 +165,15 @@ const initialBundles: Bundle[] = [
   { id: "BN-002", section: "B07", requestIds: ["MR-1026"], individualHours: 3, combinedHours: 2, reasons: ["Same section", "Compatible with telecom inspection", "Optimal window"], status: "Suggested" },
 ];
 
+const initialExecutionActivities: ExecutionActivity[] = [
+  { id: "EA-001", requestId: "MR-1024", blockId: "B-023", department: "Engineering", section: "A12", activity: "Track Inspection", plannedStart: "02:00", plannedEnd: "06:00", actualStart: "02:10", actualEnd: "05:45", progress: 100, status: "Completed", delayMinutes: 0, delayReason: "", remarks: "Completed ahead of schedule. Track geometry within tolerance." },
+  { id: "EA-002", requestId: "MR-1025", blockId: "B-023", department: "Signalling", section: "A12", activity: "Signal Inspection", plannedStart: "02:00", plannedEnd: "04:00", actualStart: "02:15", actualEnd: "", progress: 75, status: "In Progress", delayMinutes: 15, delayReason: "Equipment setup time exceeded", remarks: "Signal relay tests ongoing." },
+  { id: "EA-003", requestId: "MR-1026", blockId: "B-024", department: "Traction", section: "B07", activity: "OHE Maintenance", plannedStart: "04:00", plannedEnd: "07:00", actualStart: "", actualEnd: "", progress: 0, status: "Planned", delayMinutes: 0, delayReason: "", remarks: "" },
+  { id: "EA-004", requestId: "MR-1027", blockId: "B-025", department: "Engineering", section: "C03", activity: "Bridge Inspection", plannedStart: "10:00", plannedEnd: "13:00", actualStart: "10:05", actualEnd: "13:10", progress: 100, status: "Completed", delayMinutes: 0, delayReason: "", remarks: "Inspection complete. Minor crack noted on pier — flagged for follow-up." },
+  { id: "EA-005", requestId: "MR-1028", blockId: "B-026", department: "Telecom", section: "A13", activity: "Telecom Inspection", plannedStart: "06:00", plannedEnd: "08:00", actualStart: "06:00", actualEnd: "", progress: 40, status: "Delayed", delayMinutes: 45, delayReason: "Cable fault found — additional repair required", remarks: "Team extended. Requesting block extension." },
+  { id: "EA-006", requestId: "MR-1029", blockId: "B-027", department: "Electrical", section: "D04", activity: "Electrical Inspection", plannedStart: "08:00", plannedEnd: "10:00", actualStart: "", actualEnd: "", progress: 0, status: "Planned", delayMinutes: 0, delayReason: "", remarks: "" },
+];
+
 const initialPlanStatus: PlanStatus = {
   generated: false, approved: false, period: "07–13 Sep 2026",
   requestedBlocks: 23, optimizedBlocks: 16, conflictsBefore: 11, conflictsAfter: 2,
@@ -159,7 +190,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [conflicts, setConflicts] = useState<Conflict[]>(initialConflicts);
   const [bundles, setBundles] = useState<Bundle[]>(initialBundles);
   const [planStatus, setPlanStatus] = useState<PlanStatus>(initialPlanStatus);
+  const [executionActivities, setExecutionActivities] = useState<ExecutionActivity[]>(initialExecutionActivities);
   const [currentPage, setCurrentPage] = useState("dashboard");
+
+  const updateExecution = useCallback((id: string, patch: Partial<ExecutionActivity>) => {
+    setExecutionActivities(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
+  }, []);
 
   const addRequest = useCallback((r: Omit<MaintenanceRequest, "id" | "aiScore" | "safetyScore" | "operationalScore" | "assetCriticalityScore" | "urgencyScore">) => {
     const id = `MR-${requestCounter++}`;
@@ -227,7 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ requests, blocks, conflicts, bundles, planStatus, addRequest, updateBlockStatus, updateBlockTime, resolveConflict, createBundledBlock, generateOptimizedPlan, approvePlan, rejectPlan, currentPage, setCurrentPage }}>
+    <AppContext.Provider value={{ requests, blocks, conflicts, bundles, planStatus, executionActivities, updateExecution, addRequest, updateBlockStatus, updateBlockTime, resolveConflict, createBundledBlock, generateOptimizedPlan, approvePlan, rejectPlan, currentPage, setCurrentPage }}>
       {children}
     </AppContext.Provider>
   );
