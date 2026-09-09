@@ -83,11 +83,12 @@ export interface ExecutionActivity {
   remarks: string;
 }
 
-export type VerificationStatus = "Not Started" | "In Progress" | "Completed" | "Delayed" | "Photo Pending";
+export type VerificationStatus = "Planned" | "Not Started" | "In Progress" | "Completed" | "Delayed" | "Completion Pending";
 
 export interface PhotoRecord {
   timestamp: string;
-  label: string; // synthetic filename
+  label: string;
+  uploadedBy: string;
 }
 
 export interface VerificationRecord {
@@ -207,12 +208,12 @@ const initialExecutionActivities: ExecutionActivity[] = [
 ];
 
 const initialVerificationRecords: VerificationRecord[] = [
-  { id: "VR-001", requestId: "MR-1024", blockId: "B-023", department: "Engineering", section: "A12", activity: "Track Inspection", plannedStart: "02:00", plannedEnd: "06:00", actualStart: "02:10", actualEnd: "05:45", startPhoto: { timestamp: "07 Sep 2026 02:10", label: "START_MR1024_A12_0210.jpg" }, endPhoto: { timestamp: "07 Sep 2026 05:45", label: "END_MR1024_A12_0545.jpg" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Track geometry within tolerance. No defects found." },
-  { id: "VR-002", requestId: "MR-1025", blockId: "B-023", department: "Signalling", section: "A12", activity: "Signal Inspection", plannedStart: "02:00", plannedEnd: "04:00", actualStart: "02:15", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 02:15", label: "START_MR1025_A12_0215.jpg" }, endPhoto: null, status: "In Progress", progress: 75, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Signal relay tests ongoing. S-42 relay showing marginal readings." },
-  { id: "VR-003", requestId: "MR-1026", blockId: "B-024", department: "Traction", section: "B07", activity: "OHE Maintenance", plannedStart: "04:00", plannedEnd: "07:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Not Started", progress: 0, gracePeriodMinutes: 20, flagged: true, flagReason: "No start photo uploaded within 20-minute grace period after planned start 04:00", remarks: "" },
-  { id: "VR-004", requestId: "MR-1027", blockId: "B-025", department: "Engineering", section: "C03", activity: "Bridge Inspection", plannedStart: "10:00", plannedEnd: "13:00", actualStart: "10:05", actualEnd: "13:10", startPhoto: { timestamp: "07 Sep 2026 10:05", label: "START_MR1027_C03_1005.jpg" }, endPhoto: { timestamp: "07 Sep 2026 13:10", label: "END_MR1027_C03_1310.jpg" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Minor crack noted on Pier-3. Flagged for urgent follow-up inspection." },
-  { id: "VR-005", requestId: "MR-1028", blockId: "B-026", department: "Telecom", section: "A13", activity: "Telecom Inspection", plannedStart: "06:00", plannedEnd: "08:00", actualStart: "06:00", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 06:00", label: "START_MR1028_A13_0600.jpg" }, endPhoto: null, status: "Photo Pending", progress: 40, gracePeriodMinutes: 15, flagged: true, flagReason: "End photo not uploaded — planned end 08:00 passed. Block may be overrunning.", remarks: "Cable fault found. Additional repair required. Requesting block extension." },
-  { id: "VR-006", requestId: "MR-1029", blockId: "B-027", department: "Electrical", section: "D04", activity: "Electrical Inspection", plannedStart: "08:00", plannedEnd: "10:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Not Started", progress: 0, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "" },
+  { id: "VR-001", requestId: "MR-1024", blockId: "B-023", department: "Engineering", section: "A12", activity: "Track Inspection", plannedStart: "02:00", plannedEnd: "06:00", actualStart: "02:10", actualEnd: "05:45", startPhoto: { timestamp: "07 Sep 2026 02:10", label: "START_MR1024_A12_0210.jpg", uploadedBy: "Rajesh Kumar (Sr. Engineer)" }, endPhoto: { timestamp: "07 Sep 2026 05:45", label: "END_MR1024_A12_0545.jpg", uploadedBy: "Rajesh Kumar (Sr. Engineer)" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Track geometry within tolerance. No defects found." },
+  { id: "VR-002", requestId: "MR-1025", blockId: "B-023", department: "Signalling", section: "A12", activity: "Signal Inspection", plannedStart: "02:00", plannedEnd: "04:00", actualStart: "02:15", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 02:15", label: "START_MR1025_A12_0215.jpg", uploadedBy: "Suresh Mehta (Signal Inspector)" }, endPhoto: null, status: "Completion Pending", progress: 75, gracePeriodMinutes: 15, flagged: true, flagReason: "End photo not uploaded. Planned end 04:00 has passed. Work completion cannot be verified.", remarks: "Signal relay tests ongoing. S-42 relay showing marginal readings." },
+  { id: "VR-003", requestId: "MR-1026", blockId: "B-024", department: "Traction", section: "B07", activity: "OHE Maintenance", plannedStart: "04:00", plannedEnd: "07:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Not Started", progress: 0, gracePeriodMinutes: 20, flagged: true, flagReason: "No start photo uploaded within 20-minute grace period after planned start 04:00. Work may not have commenced.", remarks: "" },
+  { id: "VR-004", requestId: "MR-1027", blockId: "B-025", department: "Engineering", section: "C03", activity: "Bridge Inspection", plannedStart: "10:00", plannedEnd: "13:00", actualStart: "10:05", actualEnd: "13:10", startPhoto: { timestamp: "07 Sep 2026 10:05", label: "START_MR1027_C03_1005.jpg", uploadedBy: "Amit Sharma (Bridge Engineer)" }, endPhoto: { timestamp: "07 Sep 2026 13:10", label: "END_MR1027_C03_1310.jpg", uploadedBy: "Amit Sharma (Bridge Engineer)" }, status: "Completed", progress: 100, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Minor crack noted on Pier-3. Flagged for urgent follow-up inspection." },
+  { id: "VR-005", requestId: "MR-1028", blockId: "B-026", department: "Telecom", section: "A13", activity: "Telecom Inspection", plannedStart: "06:00", plannedEnd: "08:00", actualStart: "06:00", actualEnd: "", startPhoto: { timestamp: "07 Sep 2026 06:00", label: "START_MR1028_A13_0600.jpg", uploadedBy: "Priya Nair (Telecom Tech)" }, endPhoto: null, status: "Delayed", progress: 40, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "Cable fault found. Additional repair required. Requesting block extension." },
+  { id: "VR-006", requestId: "MR-1029", blockId: "B-027", department: "Electrical", section: "D04", activity: "Electrical Inspection", plannedStart: "08:00", plannedEnd: "10:00", actualStart: "", actualEnd: "", startPhoto: null, endPhoto: null, status: "Planned", progress: 0, gracePeriodMinutes: 15, flagged: false, flagReason: "", remarks: "" },
 ];
 
 const initialPlanStatus: PlanStatus = {
@@ -251,7 +252,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (r.id !== id) return r;
       const rec = r as VerificationRecord;
       const label = `START_${rec.requestId.replace("-", "")}_${rec.section}_${timeStr.replace(":", "")}.jpg`;
-      return { ...rec, startPhoto: { timestamp: dateStr, label }, actualStart: timeStr, status: "In Progress" as VerificationStatus, flagged: false, flagReason: "", progress: rec.progress === 0 ? 5 : rec.progress };
+      return { ...rec, startPhoto: { timestamp: dateStr, label, uploadedBy: "Demo User (Planner)" }, actualStart: timeStr, status: "In Progress" as VerificationStatus, flagged: false, flagReason: "", progress: rec.progress === 0 ? 5 : rec.progress };
     }));
     // Also sync executionActivities
     setExecutionActivities(prev => prev.map(a => {
@@ -269,7 +270,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (r.id !== id) return r;
       const rec = r as VerificationRecord;
       const label = `END_${rec.requestId.replace("-", "")}_${rec.section}_${timeStr.replace(":", "")}.jpg`;
-      return { ...rec, endPhoto: { timestamp: dateStr, label }, actualEnd: timeStr, status: "Completed" as VerificationStatus, progress: 100, flagged: false, flagReason: "" };
+      return { ...rec, endPhoto: { timestamp: dateStr, label, uploadedBy: "Demo User (Planner)" }, actualEnd: timeStr, status: "Completed" as VerificationStatus, progress: 100, flagged: false, flagReason: "" };
     }));
     setExecutionActivities(prev => prev.map(a => {
       const vr = initialVerificationRecords.find(v => v.id === id);
