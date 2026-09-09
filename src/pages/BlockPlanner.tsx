@@ -42,8 +42,7 @@ function timeToX(time: string) {
 }
 
 export default function BlockPlanner() {
-  const { blocks, planStatus, generateOptimizedPlan, updateBlockStatus } = useApp();
-  const { requests } = useApp();
+  const { blocks, planStatus, generateOptimizedPlan, updateBlockStatus, requests } = useApp();
   const [selected, setSelected] = useState<Block | null>(null);
   const [generating, setGenerating] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
